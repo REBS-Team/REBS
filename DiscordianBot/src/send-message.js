@@ -11,7 +11,7 @@ const client = new Client({
 });
 
 // Login to Discord with your app token
-client.login('MTI3MDUxOTczMDcxMjYwODkxMA.Ge-pa1.ySMo5-XQFjMXqTLC5P6OO93rdCaEPoiKXXetnU');
+client.login('MTMzNjc4OTI3NjE2MzE3ODYwNw.G7Cwlp.aj5S1bdhKW5l0skM87jYBtRY9I0o0DLPyIxKqg');
 
 // Setup readline to listen to terminal input
 const rl = readline.createInterface({
