@@ -4,7 +4,7 @@ const { SlashCommandBuilder } = require("discord.js");
 const { lookupService } = require("dns");
 const fs = require('fs');
 
-const clientId = '1270519730712608910'; 
+const clientId = '1337901697363607634'; 
 const guildId = 'YOUR GUILD ID'; 
 
 module.exports = (client) => {
