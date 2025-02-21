@@ -1,9 +1,9 @@
-name: Set Token
+name: Deploy Bot
 
 on: [push]
 
 jobs:
-  set-token-job:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -11,7 +11,10 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Set up environment variables
-        run: echo "token=${{ secrets.TOKEN }}" > .env
+        run: echo "token=${{ secrets.TOKEN }}" >> .env
 
-      - name: Display .env file
-        run: cat .env
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run bot
+        run: node src/index.js
