@@ -1,0 +1,17 @@
+name: Set Token
+
+on: [push]
+
+jobs:
+  set-token-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up environment variables
+        run: echo "token=${{ secrets.TOKEN }}" > .env
+
+      - name: Display .env file
+        run: cat .env
