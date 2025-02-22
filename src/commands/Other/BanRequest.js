@@ -273,7 +273,7 @@ async function getArkoseTokenWithCaptchaHarvester(publicKey) {
 
 async function submitReport(sessionCookie, arkoseToken, url, country, details, otherReason, reason, email, name) {
   // Placeholder endpoint - replace with actual URL from network inspection
-  const submissionEndpoint = "https://www.roblox.com/illegal-content-reporting/submit";
+  const submissionEndpoint = "https://www.roblox.com/illegal-content-reporting";
   const payload = {
     IllegalContentUrl: url,
     Country: country,
@@ -290,7 +290,7 @@ async function submitReport(sessionCookie, arkoseToken, url, country, details, o
     'Cookie': sessionCookie,
     'authority': 'www.roblox.com',
     'method': 'POST',
-    'path': '/illegal-content-reporting/submit', // Update path if endpoint differs
+    'path': '/illegal-content-reporting', // Update path if endpoint differs
     'scheme': 'https',
     'accept': 'application/json, text/plain, */*',
     'accept-encoding': 'gzip, deflate, br',
