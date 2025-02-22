@@ -1,7 +1,14 @@
 // filepath: /workspaces/REBS/src/index.js
+
 require('dotenv').config();
 
-console.log(`Bot token: ${process.env.token}`); // Add this line to verify the token
+client.login(process.env.DISCORD_TOKEN)
+    .then(() => {
+        console.log('Logged in successfully');
+    })
+    .catch((error) => {
+        console.error('Failed to log in:', error);
+    });
 
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField, Permissions, MessageManager, Embed, Collection } = require('discord.js');
 const fs = require('fs');
