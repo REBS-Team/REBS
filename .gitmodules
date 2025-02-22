@@ -1,0 +1,3 @@
+[submodule "CaptchaHarvester"]
+    path = CaptchaHarvester
+    url = https://github.com/allala0/captcha-harvester
