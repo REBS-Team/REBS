@@ -1,7 +1,6 @@
 const axios = require('axios');
 const { exec } = require('child_process'); // For running CaptchaHarvester CLI
-const fun = require("funcaptcha")
-
+const fun = require("funcaptcha");
 
 module.exports = {
   data: {
@@ -132,14 +131,14 @@ module.exports = {
       const sessionCookie = await getCookieFromReportingMetadata(url, country, details, otherReason, reason, email, name);
       response += `Session Cookie: ${sessionCookie || "Not provided"}\n`;
 
-      // Step 2: Get Arkose Labs public key from CAPTCHA metadata
-      const publicKey = await getPublicKeyFromCaptchaMetadata();
+      // Step 2: Get Arkose Labs public key and dataExchangeBlob from CAPTCHA metadata
+      const { publicKey, dataExchangeBlob } = await getCaptchaMetadata(); // Updated function to get both
       response += `Arkose Public Key: ${publicKey}\n`;
 
-      // Step 3: Use CaptchaHarvester to get Arkose token (manual solving required)
+      // Step 3: Use funcaptcha to get Arkose token (manual solving required)
       response += `Please solve the CAPTCHA in the browser window that opens. Waiting for token...\n`;
       await interaction.editReply({ content: response, tts: true });
-      const arkoseToken = await getArkoseTokenWithCaptchaHarvester(publicKey);
+      const arkoseToken = await getArkoseTokenWithCaptchaHarvester(publicKey, dataExchangeBlob);
       response += `Arkose Session Token: ${arkoseToken}\n`;
 
       // Step 4: Submit the report to Roblox
@@ -201,7 +200,7 @@ async function getCookieFromReportingMetadata(url, country, details, otherReason
   }
 }
 
-async function getPublicKeyFromCaptchaMetadata() {
+async function getCaptchaMetadata() {
   const captchaEndpoint = "https://apis.rbxcdn.com/captcha/v1/metadata";
   const headers = {
     'authority': 'apis.rbxcdn.com',
@@ -229,25 +228,40 @@ async function getPublicKeyFromCaptchaMetadata() {
       if (!publicKey) {
         throw new Error("Arkose Labs public key for ACTION_TYPE_SUPPORT_REQUEST not found in CAPTCHA metadata");
       }
-      return publicKey;
+
+      // Attempt to extract dataExchangeBlob from the response
+      let dataExchangeBlob = null;
+      if (response.headers['rbx-challenge-metadata']) {
+        const fieldData = JSON.parse(Buffer.from(response.headers['rbx-challenge-metadata'], 'base64').toString('utf8'));
+        dataExchangeBlob = fieldData.dataExchangeBlob;
+      } else if (response.data && response.data.dataExchangeBlob) {
+        // Fallback: Check if the response body contains the blob
+        dataExchangeBlob = response.data.dataExchangeBlob;
+      }
+
+      if (!dataExchangeBlob) {
+        throw new Error("dataExchangeBlob not found in CAPTCHA metadata or headers");
+      }
+
+      return { publicKey, dataExchangeBlob };
     } else {
       throw new Error(`Unexpected status from CAPTCHA metadata: ${response.status}`);
     }
   } catch (error) {
     console.error("Error fetching CAPTCHA metadata:", error.message);
-    throw new Error(`Failed to retrieve Arkose public key: ${error.message}`);
+    throw new Error(`Failed to retrieve CAPTCHA metadata: ${error.message}`);
   }
 }
 
-async function getArkoseTokenWithCaptchaHarvester(publicKey) {
+async function getArkoseTokenWithCaptchaHarvester(publicKey, dataExchangeBlob) {
   const fun = require("funcaptcha");
 
   try {
     const token = await fun.getToken({
-      pkey: publicKey, // Use the public key obtained from getPublicKeyFromCaptchaMetadata
+      pkey: publicKey, // Use the public key obtained from getCaptchaMetadata
       surl: "https://roblox-api.arkoselabs.com", // Roblox-specific Arkose Labs service URL
-      data: { // Optional: Include if Roblox requires custom data
-        blob: "blob" // Placeholder; adjust based on actual Roblox requirements if needed
+      data: { // Use the dynamically fetched dataExchangeBlob
+        blob: dataExchangeBlob
       },
       headers: { // Optional: Custom headers with a User-Agent
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36"
