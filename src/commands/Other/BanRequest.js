@@ -238,37 +238,13 @@ async function getPublicKeyFromCaptchaMetadata() {
 }
 
 async function getArkoseTokenWithCaptchaHarvester(publicKey) {
-  return new Promise((resolve, reject) => {
-    // Updated command: Use proper flags based on CaptchaHarvester documentation
-    // Try: --url for URL, --public-key for public key
-    const command = `captcha-harvester --url https://www.roblox.com/illegal-content-reporting --public-key ${publicKey}`;
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`CaptchaHarvester error: ${stderr}`);
-        return reject(new Error(`CaptchaHarvester failed: ${stderr}`));
-      }
-      console.log("CaptchaHarvester stdout:", stdout); // Log output for debugging
-      // Try multiple regex patterns to match the token (adjust based on actual output)
-      const tokenPatterns = [
-        /fc_sess=([^]+)/, // Matches "fc_sess=..." (original)
-        /token: (\w+)/,   // Matches "token: <value>" (if output format differs)
-        /arkose_token=([^]+)/, // Matches "arkose_token=..." (alternative)
-        /(\w{10,})[^\w]/  // Matches a long string of alphanumeric characters (generic fallback)
-      ];
-      
-      for (const pattern of tokenPatterns) {
-        const tokenMatch = stdout.match(pattern);
-        if (tokenMatch) {
-          const token = tokenMatch[1]; // Extract the captured group (token value)
-          console.log("Found token:", token);
-          return resolve(token); // Return just the token value (e.g., "12345..." without prefix)
-        }
-      }
-      
-      console.error("No Arkose token found in CaptchaHarvester output:", stdout);
-      reject(new Error("No Arkose token found in CaptchaHarvester output"));
-    });
+  const Nopecha = require('nopecha');
+  const client = new Nopecha('YOUR_NOPECHA_API_KEY');
+  const token = await client.solve('funcaptcha', { // Arkose Labs = FunCaptcha
+    sitekey: publicKey,
+    url: 'https://www.roblox.com/illegal-content-reporting'
   });
+  return token;
 }
 
 async function submitReport(sessionCookie, arkoseToken, url, country, details, otherReason, reason, email, name) {
