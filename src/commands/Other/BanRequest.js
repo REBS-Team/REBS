@@ -1,5 +1,7 @@
 const axios = require('axios');
 const { exec } = require('child_process'); // For running CaptchaHarvester CLI
+const fun = require("funcaptcha")
+
 
 module.exports = {
   data: {
@@ -238,13 +240,26 @@ async function getPublicKeyFromCaptchaMetadata() {
 }
 
 async function getArkoseTokenWithCaptchaHarvester(publicKey) {
-  const Nopecha = require('nopecha');
-  const client = new Nopecha('YOUR_NOPECHA_API_KEY');
-  const token = await client.solve('funcaptcha', { // Arkose Labs = FunCaptcha
-    sitekey: publicKey,
-    url: 'https://www.roblox.com/illegal-content-reporting'
-  });
-  return token;
+  const fun = require("funcaptcha");
+
+  try {
+    const token = await fun.getToken({
+      pkey: publicKey, // Use the public key obtained from getPublicKeyFromCaptchaMetadata
+      surl: "https://roblox-api.arkoselabs.com", // Roblox-specific Arkose Labs service URL
+      data: { // Optional: Include if Roblox requires custom data
+        blob: "blob" // Placeholder; adjust based on actual Roblox requirements if needed
+      },
+      headers: { // Optional: Custom headers with a User-Agent
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36"
+      },
+      site: "https://www.roblox.com/illegal-content-reporting", // The specific Roblox reporting page
+      proxy: "http://127.0.0.1:8888" // Optional: Proxy for token fetching (remove if not needed)
+    });
+    return token;
+  } catch (error) {
+    console.error("Error fetching Arkose token with funcaptcha:", error.message);
+    throw new Error(`Failed to obtain Arkose token: ${error.message}`);
+  }
 }
 
 async function submitReport(sessionCookie, arkoseToken, url, country, details, otherReason, reason, email, name) {
