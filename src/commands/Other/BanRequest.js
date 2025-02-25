@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { exec } = require('child_process'); // For running CaptchaHarvester CLI
+const { exec } = require('child_process'); // For running CaptchaHarvester
 const fun = require("funcaptcha");
 
 module.exports = {
