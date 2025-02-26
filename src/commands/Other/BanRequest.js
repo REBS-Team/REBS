@@ -132,7 +132,7 @@ module.exports = {
       response += `Session Cookie: ${sessionCookie || "Not provided"}\n`;
 
       // Step 2: Get Arkose Labs public key from CAPTCHA metadata
-      const { publicKey } = await getCaptchaMetadata();
+      const { publicKey } = "63E4117F-E727-42B4-6DAA-C8448E9B137F";
       response += `Arkose Public Key: ${publicKey}\n`;
 
       // Update the Discord reply with the final response
@@ -185,38 +185,5 @@ async function getCookieFromReportingMetadata(url, country, details, otherReason
   } catch (error) {
     console.error("Error fetching session cookie:", error.message);
     throw new Error(`Failed to retrieve session cookie: ${error.message}`);
-  }
-}
-
-async function getCaptchaMetadata() {
-  const captchaEndpoint = "https://apis.rbxcdn.com/captcha/v1/metadata";
-  const headers = {
-    'authority': 'apis.rbxcdn.com',
-    'accept': 'application/json, text/plain, */*',
-    'accept-encoding': 'gzip, deflate, br, zstd',
-    'accept-language': 'en-US,en;q=0.9',
-    'origin': 'https://www.roblox.com',
-    'referer': 'https://www.roblox.com/',
-    'sec-ch-ua': '"Not/A)Brand";v="24", "Chromium";v="134"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'cross-site',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-  };
-
-  try {
-    const response = await axios.get(captchaEndpoint, { headers });
-    if (response.status === 200 && response.data) {
-      return {
-        publicKey: response.data.publicKey || "default-public-key" // Fallback if structure differs
-      };
-    } else {
-      throw new Error(`Failed to retrieve CAPTCHA metadata. Status: ${response.status}`);
-    }
-  } catch (error) {
-    console.error("Error fetching CAPTCHA metadata:", error.message);
-    throw new Error(`Failed to retrieve CAPTCHA metadata: ${error.message}`);
   }
 }
