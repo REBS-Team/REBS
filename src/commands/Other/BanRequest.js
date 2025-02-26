@@ -1,13 +1,13 @@
 const axios = require('axios');
-const { exec } = require('child_process'); // For running CaptchaHarvester
-const fun = require("funcaptcha");
+const { exec } = require('child_process'); // Still included but unused
+const fun = require("funcaptcha"); // Still included but unused
 
 module.exports = {
   data: {
     name: "report",
     description: "Report an infringing URL with detailed information",
-    "integration_types": [1],
-    "contexts": [0, 1, 2],
+    integration_types: [1],
+    contexts: [0, 1, 2],
     options: [
       {
         name: "illegalcontenturl",
@@ -131,26 +131,17 @@ module.exports = {
       const sessionCookie = await getCookieFromReportingMetadata(url, country, details, otherReason, reason, email, name);
       response += `Session Cookie: ${sessionCookie || "Not provided"}\n`;
 
-      // Step 2: Get Arkose Labs public key and dataExchangeBlob from CAPTCHA metadata
-      const { publicKey, dataExchangeBlob } = await getCaptchaMetadata(); // Updated function to get both
+      // Step 2: Get Arkose Labs public key from CAPTCHA metadata
+      const { publicKey } = await getCaptchaMetadata();
       response += `Arkose Public Key: ${publicKey}\n`;
 
-      // Step 3: Use funcaptcha to get Arkose token (manual solving required)
-      response += `Please solve the CAPTCHA in the browser window that opens. Waiting for token...\n`;
+      // Update the Discord reply with the final response
       await interaction.editReply({ content: response, tts: true });
-      const arkoseToken = await getArkoseTokenWithCaptchaHarvester(publicKey, dataExchangeBlob);
-      response += `Arkose Session Token: ${arkoseToken}\n`;
-
-      // Step 4: Submit the report to Roblox
-      const submissionResult = await submitReport(sessionCookie, arkoseToken, url, country, details, otherReason, reason, email, name);
-      response += `\nReport Submission Result: ${JSON.stringify(submissionResult, null, 2)}`;
     } catch (error) {
-      console.error("Error during report submission:", error.message);
+      console.error("Error during report processing:", error.message);
       response += `\nError: ${error.message}`;
+      await interaction.editReply({ content: response, tts: true });
     }
-
-    // Update the Discord reply with the final response
-    await interaction.editReply({ content: response, tts: true });
   }
 };
 
@@ -170,9 +161,6 @@ async function getCookieFromReportingMetadata(url, country, details, otherReason
 
   const headers = {
     'authority': 'www.roblox.com',
-    'method': 'GET',
-    'path': '/illegal-content-reporting/metadata',
-    'scheme': 'https',
     'accept': 'application/json, text/plain, */*',
     'accept-encoding': 'gzip, deflate, br',
     'accept-language': 'en-US,en;q=0.9',
@@ -204,9 +192,6 @@ async function getCaptchaMetadata() {
   const captchaEndpoint = "https://apis.rbxcdn.com/captcha/v1/metadata";
   const headers = {
     'authority': 'apis.rbxcdn.com',
-    'method': 'GET',
-    'path': '/captcha/v1/metadata',
-    'scheme': 'https',
     'accept': 'application/json, text/plain, */*',
     'accept-encoding': 'gzip, deflate, br, zstd',
     'accept-language': 'en-US,en;q=0.9',
@@ -223,107 +208,15 @@ async function getCaptchaMetadata() {
 
   try {
     const response = await axios.get(captchaEndpoint, { headers });
-    if (response.status === 200) {
-      const publicKey = response.data.funCaptchaPublicKeys?.['ACTION_TYPE_SUPPORT_REQUEST'];
-      if (!publicKey) {
-        throw new Error("Arkose Labs public key for ACTION_TYPE_SUPPORT_REQUEST not found in CAPTCHA metadata");
-      }
-
-      // Attempt to extract dataExchangeBlob from the response
-      let dataExchangeBlob = null;
-      if (response.headers['rbx-challenge-metadata']) {
-        const fieldData = JSON.parse(Buffer.from(response.headers['rbx-challenge-metadata'], 'base64').toString('utf8'));
-        dataExchangeBlob = fieldData.dataExchangeBlob;
-      } else if (response.data && response.data.dataExchangeBlob) {
-        // Fallback: Check if the response body contains the blob
-        dataExchangeBlob = response.data.dataExchangeBlob;
-      }
-
-      if (!dataExchangeBlob) {
-        throw new Error("dataExchangeBlob not found in CAPTCHA metadata or headers");
-      }
-
-      return { publicKey, dataExchangeBlob };
+    if (response.status === 200 && response.data) {
+      return {
+        publicKey: response.data.publicKey || "default-public-key" // Fallback if structure differs
+      };
     } else {
-      throw new Error(`Unexpected status from CAPTCHA metadata: ${response.status}`);
+      throw new Error(`Failed to retrieve CAPTCHA metadata. Status: ${response.status}`);
     }
   } catch (error) {
     console.error("Error fetching CAPTCHA metadata:", error.message);
     throw new Error(`Failed to retrieve CAPTCHA metadata: ${error.message}`);
   }
 }
-
-async function getArkoseTokenWithCaptchaHarvester(publicKey, dataExchangeBlob) {
-  const fun = require("funcaptcha");
-
-  try {
-    const token = await fun.getToken({
-      pkey: publicKey, // Use the public key obtained from getCaptchaMetadata
-      surl: "https://roblox-api.arkoselabs.com", // Roblox-specific Arkose Labs service URL
-      data: { // Use the dynamically fetched dataExchangeBlob
-        blob: dataExchangeBlob
-      },
-      headers: { // Optional: Custom headers with a User-Agent
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36"
-      },
-      site: "https://www.roblox.com/illegal-content-reporting", // The specific Roblox reporting page
-      proxy: "http://127.0.0.1:8888" // Optional: Proxy for token fetching (remove if not needed)
-    });
-    return token;
-  } catch (error) {
-    console.error("Error fetching Arkose token with funcaptcha:", error.message);
-    throw new Error(`Failed to obtain Arkose token: ${error.message}`);
-  }
-}
-
-async function submitReport(sessionCookie, arkoseToken, url, country, details, otherReason, reason, email, name) {
-  // Placeholder endpoint - replace with actual URL from network inspection
-  const submissionEndpoint = "https://www.roblox.com/illegal-content-reporting";
-  const payload = {
-    IllegalContentUrl: url,
-    Country: country,
-    IllegalType: details,
-    OtherViolation: details === "Other" ? otherReason : "",
-    Reason: reason,
-    Email: email,
-    Name: name,
-    "arkose_token": arkoseToken // Arkose Labs typically uses "arkose_token" as the field name
-  };
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'Cookie': sessionCookie,
-    'authority': 'www.roblox.com',
-    'method': 'POST',
-    'path': '/illegal-content-reporting', // Update path if endpoint differs
-    'scheme': 'https',
-    'accept': 'application/json, text/plain, */*',
-    'accept-encoding': 'gzip, deflate, br',
-    'accept-language': 'en-US,en;q=0.9',
-    'origin': 'https://www.roblox.com',
-    'referer': 'https://www.roblox.com/illegal-content-reporting',
-    'sec-ch-ua': '"Not/A)Brand";v="24", "Chromium";v="134"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'same-origin',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-  };
-
-  try {
-    const response = await axios.post(submissionEndpoint, payload, { headers });
-    if (response.status === 200 || response.status === 201) {
-      return {
-        success: true,
-        message: "Report submitted successfully",
-        data: response.data
-      };
-    } else {
-      throw new Error(`Unexpected status from submission: ${response.status}`);
-    }
-  } catch (error) {
-    console.error("Error submitting report:", error.message);
-    throw new Error(`Failed to submit report: ${error.message}`);
-  }
-};
