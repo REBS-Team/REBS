@@ -134,11 +134,10 @@ module.exports = {
       const publicKey = "63E4117F-E727-42B4-6DAA-C8448E9B137F"; // Reporting-specific public key
       response += `Arkose Public Key: ${publicKey}\n`;
 
-      const token = await fun.getToken({
+      const tokenObj = await fun.getToken({
         pkey: publicKey,
         surl: "https://roblox-api.arkoselabs.com",
         data: {
-
         },
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
@@ -146,8 +145,11 @@ module.exports = {
           "Origin": "https://www.roblox.com",
           "Referer": "https://www.roblox.com/illegal-content-reporting"
         },
-        site: "https://www.roblox.com/illegal-content-reporting",
+        site: "https://www.roblox.com/illegal-content-reporting"
       });
+  
+      // Extract the token from the returned object
+      const token = tokenObj.token || JSON.stringify(tokenObj); // Fallback to stringified object if no 'token' field
       response += `CAPTCHA Token: ${token || "Not retrieved"}\n`;
 
       // Update the Discord reply with the final response
