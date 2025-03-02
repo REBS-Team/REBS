@@ -103,7 +103,6 @@ module.exports = {
     const email = interaction.options.getString("email") || "";
     const name = interaction.options.getString("name") || "";
 
-    // Validation: Check if otherReason is set when illegaltype is not "Other"
     if (details !== "Other" && otherReason !== "") {
       return await interaction.reply({
         content: "Error: You can't specify an 'Other Violation' when the main reason isn't 'Other'! Please select 'Other' as the Illegal Type if you want to specify an Other Violation, or set Other Violation to 'None'.",
@@ -111,7 +110,6 @@ module.exports = {
       });
     }
 
-    // Build initial response message
     let response = `New Report Submitted!\n` +
                    `IllegalContentUrl: ${url}\n` +
                    `Country: ${country}\n` +
@@ -122,31 +120,48 @@ module.exports = {
                    `Name: ${name}\n` +
                    `Bot made by: <@530047797441855553>\n`;
 
-    // Send initial reply to Discord
     await interaction.reply({ content: response, tts: true, ephemeral: false });
 
     try {
-      // Step 1: Get session cookie and potential CAPTCHA metadata
-      const { sessionCookie, challengeMetadata } = await getCookieFromReportingMetadata(url, country, details, otherReason, reason, email, name);
+      const sessionCookie = await getCookieFromReportingMetadata(url, country, details, otherReason, reason, email, name);
       response += `Session Cookie: ${sessionCookie || "Not provided"}\n`;
 
-      // Step 2: Get Arkose Labs CAPTCHA token
-      const publicKey = "63E4117F-E727-42B4-6DAA-C8448E9B137F"; // Reporting-specific public key
-      response += `Arkose Public Key: ${publicKey}\n`;
+      const loginEndpoint = "https://auth.roblox.com/v2/login";
+      const loginPayload = {
+        ctype: "Username",
+        cvalue: "dummyuser",
+        password: "dummypass"
+      };
+      const loginHeaders = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Origin": "https://www.roblox.com",
+        "Referer": "https://www.roblox.com/",
+        "Cookie": sessionCookie || ""
+      };
 
-      // Use the blob from the metadata response (if available)
-      let dataBlob = challengeMetadata ? challengeMetadata.blob : "default_blob_placeholder";
-      if (challengeMetadata && challengeMetadata.raw) {
-        console.log("Raw challenge metadata:", challengeMetadata.raw); // Debug the full structure
-        dataBlob = challengeMetadata.raw; // Adjust based on actual structure
+      const loginResponse = await axios.post(loginEndpoint, loginPayload, { headers: loginHeaders });
+      response += `Login Attempt Status: ${loginResponse.status}\n`;
+    } catch (error) {
+      if (error.response && error.response.status === 403) {
+        const fieldData = error.response.data.errors[0].fieldData;
+        const parsedFieldData = JSON.parse(fieldData);
+        const dxBlob = parsedFieldData.dxBlob || "Not found";
+        response += `Data Exchange Blob: ${dxBlob}\n`;
+      } else {
+        response += `Login Error: ${error.message}\n`;
       }
+    }
+
+    try {
+      const publicKey = "63E4117F-E727-42B4-6DAA-C8448E9B137F";
+      response += `Arkose Public Key: ${publicKey}\n`;
 
       const tokenObj = await fun.getToken({
         pkey: publicKey,
         surl: "https://roblox-api.arkoselabs.com",
-        data: {
-          blob: dataBlob // Use the fetched blob here
-        },
+        data: {},
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
           "Accept": "application/json, text/plain, */*",
@@ -159,17 +174,17 @@ module.exports = {
       const token = tokenObj.token || JSON.stringify(tokenObj);
       response += `CAPTCHA Token: ${token || "Not retrieved"}\n`;
 
-      // Update the Discord reply with the final response
-      await interaction.editReply({ content: response, tts: true });
+      if (tokenObj.data && tokenObj.data.blob) {
+        response += `Funcaptcha Blob (Bonus): ${tokenObj.data.blob}\n`;
+      }
     } catch (error) {
-      console.error("Error during report processing:", error.message);
-      response += `\nError: ${error.message}`;
-      await interaction.editReply({ content: response, tts: true });
+      response += `\nCAPTCHA Error: ${error.message}`;
     }
+
+    await interaction.editReply({ content: response, tts: true });
   }
 };
 
-// Helper Functions
 async function getCookieFromReportingMetadata(url, country, details, otherReason, reason, email, name) {
   const cookieEndpoint = "https://www.roblox.com/illegal-content-reporting/metadata";
   const params = {
@@ -195,29 +210,13 @@ async function getCookieFromReportingMetadata(url, country, details, otherReason
 
   try {
     const response = await axios.get(cookieEndpoint, { params, headers });
-    let sessionCookie = response.headers['set-cookie'] ? response.headers['set-cookie'].join('; ') : null;
-    let challengeMetadata = null;
-
-    // Check for CAPTCHA challenge in headers or body
-    if (response.status === 403 && response.headers['rblx-challenge-metadata']) {
-      const rawMetadata = response.headers['rblx-challenge-metadata'];
-      const decodedMetadata = JSON.parse(Buffer.from(rawMetadata, 'base64').toString('utf8'));
-      challengeMetadata = {
-        raw: rawMetadata, // Keep raw for debugging
-        blob: decodedMetadata.dataExchangeBlob || decodedMetadata.blob // Adjust based on actual key
-      };
-    } else if (response.data && response.data.failureDetails) {
-      // Check body for CAPTCHA details (e.g., signup flow style)
-      const fieldData = response.data.failureDetails[0]?.fieldData;
-      if (fieldData) {
-        const [captchaId, blob] = fieldData.split(',');
-        challengeMetadata = { blob };
-      }
+    if (response.status === 200 && response.headers['set-cookie']) {
+      return response.headers['set-cookie'].join('; ');
+    } else {
+      throw new Error(`No session cookie returned. Status: ${response.status}`);
     }
-
-    return { sessionCookie, challengeMetadata };
   } catch (error) {
-    console.error("Error fetching session cookie or metadata:", error.message);
-    throw new Error(`Failed to retrieve session cookie or metadata: ${error.message}`);
+    console.error("Error fetching session cookie:", error.message);
+    throw new Error(`Failed to retrieve session cookie: ${error.message}`);
   }
 }
