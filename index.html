@@ -2,11 +2,21 @@
 <html>
 <head>
   <title>Captcha Harvester Bot V2</title>
-  <!-- Include the script statically -->
-  <script src="https://arkoselabs.roblox.com/v2/63E4117F-E727-42B4-6DAA-C8448E9B137F/api.js"></script>
 </head>
 <body>
   <h1>Welcome to Captcha Harvester</h1>
   <p>Bot status: Hosted elsewhere</p>
+
+  <div id="captcha-container"></div>
+
+  <script>
+    var PublicKey = "63E4117F-E727-42B4-6DAA-C8448E9B137F";
+    var iframe = document.createElement('iframe');
+    iframe.src = `https://client-api.arkoselabs.com/v2/${PublicKey}/iframe.html`;
+    iframe.width = "100%";
+    iframe.height = "500px";
+    iframe.frameBorder = "0";
+    document.getElementById('captcha-container').appendChild(iframe);
+  </script>
 </body>
 </html>

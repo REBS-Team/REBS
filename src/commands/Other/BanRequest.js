@@ -1,6 +1,5 @@
 const axios = require('axios');
-const { exec } = require('child_process'); // Still included but unused
-const fun = require("funcaptcha"); // Still included but unused
+const fun = require('funcaptcha');
 
 module.exports = {
   data: {
@@ -131,9 +130,26 @@ module.exports = {
       const sessionCookie = await getCookieFromReportingMetadata(url, country, details, otherReason, reason, email, name);
       response += `Session Cookie: ${sessionCookie || "Not provided"}\n`;
 
-      // Step 2: Get Arkose Labs public key from CAPTCHA metadata
-      const { publicKey } = "63E4117F-E727-42B4-6DAA-C8448E9B137F";
+      // Step 2: Get Arkose Labs CAPTCHA token
+      const publicKey = "63E4117F-E727-42B4-6DAA-C8448E9B137F"; // Reporting-specific public key
       response += `Arkose Public Key: ${publicKey}\n`;
+
+      const token = await fun.getToken({
+        pkey: publicKey,
+        surl: "https://roblox-api.arkoselabs.com",
+        data: {
+          
+        },
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
+          "Accept": "application/json, text/plain, */*",
+          "Origin": "https://www.roblox.com",
+          "Referer": "https://www.roblox.com/illegal-content-reporting"
+        },
+        site: "https://www.roblox.com/illegal-content-reporting",
+        proxy: "http://127.0.0.1:8888" // Optional, remove if not needed
+      });
+      response += `CAPTCHA Token: ${token || "Not retrieved"}\n`;
 
       // Update the Discord reply with the final response
       await interaction.editReply({ content: response, tts: true });
@@ -146,7 +162,6 @@ module.exports = {
 };
 
 // Helper Functions
-
 async function getCookieFromReportingMetadata(url, country, details, otherReason, reason, email, name) {
   const cookieEndpoint = "https://www.roblox.com/illegal-content-reporting/metadata";
   const params = {
@@ -160,19 +175,14 @@ async function getCookieFromReportingMetadata(url, country, details, otherReason
   };
 
   const headers = {
-    'authority': 'www.roblox.com',
-    'accept': 'application/json, text/plain, */*',
-    'accept-encoding': 'gzip, deflate, br',
-    'accept-language': 'en-US,en;q=0.9',
-    'origin': 'https://www.roblox.com',
-    'referer': 'https://www.roblox.com/illegal-content-reporting',
-    'sec-ch-ua': '"Not/A)Brand";v="24", "Chromium";v="134"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'same-origin',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Origin": "https://www.roblox.com",
+    "Referer": "https://www.roblox.com/illegal-content-reporting",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-origin"
   };
 
   try {
